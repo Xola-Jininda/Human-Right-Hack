@@ -1,817 +1,438 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Phone, Clock, MessageCircle, X, Send, ChevronDown, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import Link from 'next/link';
+import Image from "next/image";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, useGLTF, PerspectiveCamera } from "@react-three/drei";
+import { useRef, Suspense } from "react";
+
+// Type definition for messages
+interface Message {
+  id: string;
+  text: string;
+  sender: string;
+  timestamp: Date;
+}
+
+// Add type definitions for Botsonic
+declare global {
+  interface Window {
+    botsonic_widget: string;
+    Botsonic: (command: string, options: any, callback?: (response: any) => void) => void;
+    [key: string]: any;
+  }
+}
 
 export default function Home() {
-  const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Hello! How can we assist you today?", sender: "bot" }
-  ]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-      
-      // Simple section detection
-      const homeSection = document.getElementById('home');
-      const servicesSection = document.getElementById('services');
-      const emergencySection = document.getElementById('emergency');
-      const aboutSection = document.getElementById('about');
-      
-      const scrollPosition = window.scrollY + 100;
-      
-      if (aboutSection && scrollPosition >= aboutSection.offsetTop) {
-        setActiveSection('about');
-      } else if (emergencySection && scrollPosition >= emergencySection.offsetTop) {
-        setActiveSection('emergency');
-      } else if (servicesSection && scrollPosition >= servicesSection.offsetTop) {
-        setActiveSection('services');
-      } else {
-        setActiveSection('home');
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const sendMessage = () => {
-    if (newMessage.trim() === "") return;
-    
-    // Add user message
-    const userMsgId = messages.length + 1;
-    setMessages([...messages, { id: userMsgId, text: newMessage, sender: "user" }]);
-    setNewMessage("");
-    
-    // Simulate bot response
-    setTimeout(() => {
-      let botResponse = "Thank you for your message. Our team will get back to you shortly.";
-      
-      if (newMessage.toLowerCase().includes("emergency")) {
-        botResponse = "For medical emergencies, please call 911 immediately. Do not wait for a chat response.";
-      } else if (newMessage.toLowerCase().includes("appointment") || newMessage.toLowerCase().includes("schedule")) {
-        botResponse = "To schedule an appointment, please provide your preferred date, time, and the type of service needed.";
-      } else if (newMessage.toLowerCase().includes("location") || newMessage.toLowerCase().includes("address")) {
-        botResponse = "Our main facility is located at 123 Medical Center Drive. We also have satellite locations throughout the city.";
-      }
-      
-      setMessages(prev => [...prev, { id: prev.length + 1, text: botResponse, sender: "bot" }]);
-    }, 1000);
+  const [isEnlarged, setIsEnlarged] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [language, setLanguage] = useState("en");
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"]
+  });
+  
+  const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.2]);
+  const scale = useTransform(scrollYProgress, [0, 0.2], [1, 0.9]);
+  
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        staggerChildren: 0.2,
+        delayChildren: 0.3
+      } 
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1, transition: { duration: 0.5 } }
   };
 
-  const scrollToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (section) {
-      window.scrollTo({
-        top: section.offsetTop - 80,
-        behavior: 'smooth'
-      });
+  const fadeInUpVariants = {
+    hidden: { y: 40, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { 
+        type: "spring", 
+        stiffness: 100, 
+        damping: 12 
+      } 
+    }
+  };
+
+  const pulseVariants = {
+    initial: {
+      scale: 1,
+      opacity: 1
+    },
+    animate: {
+      scale: [1, 1.05, 1],
+      opacity: [1, 0.8, 1],
+      transition: {
+        duration: 2,
+        ease: "easeInOut",
+        repeat: Infinity,
+        repeatType: "reverse"
+      }
+    }
+  };
+
+  // Botsonic configuration
+  const BOTSONIC_SERVICE_BASE_URL = "https://api-azure.botsonic.ai";
+  const BOTSONIC_TOKEN = "1ca6ae32-bb74-4141-bdf8-2f71c7e2a544";
+
+  useEffect(() => {
+    // Load Botsonic script dynamically
+    (function (w: Window & typeof globalThis, d: Document, s: string, o: string, f: string) {
+      let js: HTMLScriptElement;
+      let fjs: Element | null;
+      w["botsonic_widget"] = o;
+      w[o] =
+        w[o] ||
+        function () {
+          (w[o].q = w[o].q || []).push(arguments);
+        };
+      js = d.createElement(s) as HTMLScriptElement;
+      fjs = d.getElementsByTagName(s)[0];
+      js.id = o;
+      js.src = f;
+      js.async = true;
+      fjs?.parentNode?.insertBefore(js, fjs);
+    })(window, document, "script", "Botsonic", "https://widget.botsonic.com/CDN/botsonic.min.js");
+
+    // Initialize Botsonic
+    window.Botsonic("init", {
+      serviceBaseUrl: BOTSONIC_SERVICE_BASE_URL,
+      token: BOTSONIC_TOKEN,
+    });
+
+    // Optional: Sync messages with Botsonic if needed
+    window.Botsonic("onMessage", (response: any) => {
+      if (response && response.data) {
+        const assistantMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: response.data,
+          sender: "assistant",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
+    });
+
+    const userLang = navigator.language.toLowerCase();
+    if (userLang.startsWith("xh")) {
+      setLanguage("xh");
+    }
+  }, []);
+
+  const toggleEnlarge = () => {
+    setIsEnlarged((prev: boolean) => !prev);
+    // Optional: Adjust Botsonic widget size (if supported by Botsonic API)
+    const widget = document.querySelector(".botsonic_widget_container") as HTMLElement;
+    if (widget) {
+      widget.style.width = isEnlarged ? "300px" : "100%";
+      widget.style.height = isEnlarged ? "400px" : "80vh";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Head>
-        <title>LifeLine EMS - Emergency Medical Services</title>
-        <meta name="description" content="Professional emergency medical services available 24/7" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <div ref={containerRef} className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100 dark:from-blue-950 dark:via-indigo-900 dark:to-blue-900 p-8 pb-20 sm:p-20 font-[family-name:var(--font-geist-sans)] relative overflow-hidden">
+      {/* Enhanced decorative elements */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-40 right-20 w-[500px] h-[500px] bg-red-300/20 dark:bg-red-500/10 rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-40 left-20 w-[600px] h-[600px] bg-blue-300/20 dark:bg-blue-500/10 rounded-full blur-[120px]"></div>
+        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] bg-purple-300/20 dark:bg-purple-500/10 rounded-full blur-[90px]"></div>
+      </div>
 
-      {/* Navigation Bar */}
-      <motion.nav 
-        className={`fixed w-full z-50 transition-all duration-300 ${
-          isScrolled 
-            ? 'bg-white/90 backdrop-blur-md shadow-md py-2' 
-            : 'bg-transparent py-4'
-        }`}
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.5 }}
+      {/* Replace 3D model section with a modern hero image/animation */}
+      <motion.div 
+        variants={fadeInUpVariants}
+        className="w-full h-[400px] bg-gradient-to-r from-white/10 to-white/20 dark:from-gray-800/20 dark:to-gray-800/30 backdrop-blur-sm rounded-2xl overflow-hidden shadow-xl border border-white/30 dark:border-gray-700/30 relative my-12"
       >
-        <div className="container mx-auto px-4 flex justify-between items-center">
+        <div className="absolute inset-0 flex items-center justify-center">
           <motion.div 
-            className="flex items-center"
-            whileHover={{ scale: 1.05 }}
-          >
-            <span className="text-red-600 font-bold text-2xl mr-2">LifeLine</span>
-            <span className="text-blue-600 font-bold text-2xl">EMS</span>
-          </motion.div>
-          
-          <ul className="hidden md:flex space-x-8">
-            {['home', 'services', 'emergency', 'about'].map((section) => (
-              <motion.li 
-                key={section}
-                className={`cursor-pointer ${activeSection === section ? 'text-blue-600 font-semibold' : 'text-gray-600'}`}
-                whileHover={{ scale: 1.1 }}
-                onClick={() => scrollToSection(section)}
-              >
-                {section.charAt(0).toUpperCase() + section.slice(1)}
-              </motion.li>
-            ))}
-          </ul>
-          
-          <motion.button
-            className="bg-red-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center"
-            whileHover={{ scale: 1.05, backgroundColor: "#e53e3e" }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Phone size={16} className="mr-2" />
-            <span className="font-medium">Emergency: 911</span>
-          </motion.button>
-        </div>
-      </motion.nav>
-
-      {/* Hero Section */}
-      <section id="home" className="pt-32 pb-20 relative overflow-hidden">
-        <motion.div 
-          className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-red-900/10 z-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.5 }}
-        ></motion.div>
-        
-        {/* Floating particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(15)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-4 h-4 rounded-full bg-blue-500/20"
-              initial={{ 
-                x: Math.random() * 100 - 50, 
-                y: Math.random() * 100 - 50,
-                scale: Math.random() * 0.5 + 0.5
-              }}
-              animate={{ 
-                x: [Math.random() * 100 - 50, Math.random() * 100 - 50],
-                y: [Math.random() * 100 - 50, Math.random() * 100 - 50],
-                opacity: [0.2, 0.5, 0.2]
-              }}
-              transition={{ 
-                repeat: Infinity,
-                duration: Math.random() * 10 + 10,
-                ease: "linear" 
-              }}
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-              }}
-            />
-          ))}
-        </div>
-        
-        <div className="container mx-auto px-4 flex flex-col lg:flex-row items-center relative z-10">
-          <motion.div 
-            className="lg:w-1/2 mb-10 lg:mb-0"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 leading-tight">
-              Emergency Care When <span className="text-red-600">You Need It Most</span>
-            </h1>
-            <p className="mt-4 text-lg text-gray-600 max-w-lg">
-              Professional emergency medical services available 24/7. Our team of certified professionals is ready to respond to any medical emergency.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-4">
-              <motion.button
-                className="bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center"
-                whileHover={{ scale: 1.05, backgroundColor: "#3182ce" }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Phone size={18} className="mr-2" />
-                <span className="font-medium">Contact Us</span>
-              </motion.button>
-              <motion.button
-                className="border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-full shadow-lg flex items-center"
-                whileHover={{ scale: 1.05, borderColor: "#3182ce", color: "#3182ce" }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => scrollToSection('services')}
-              >
-                <span className="font-medium">Our Services</span>
-                <ChevronDown size={18} className="ml-2" />
-              </motion.button>
-            </div>
-          </motion.div>
-          
-          <motion.div 
-            className="lg:w-1/2"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <motion.div 
-              className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden"
-              whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}
-            >
-              <img 
-                src="/api/placeholder/600/400" 
-                alt="Emergency Medical Service" 
-                className="w-full h-96 object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
-                <div className="flex items-center mb-3">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                  <span className="text-white font-medium">Units Available Now</span>
-                </div>
-                <h2 className="text-white text-2xl font-bold">Rapid Response Team</h2>
-                <p className="text-gray-200 mt-2">Average response time: 8 minutes</p>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
-        
-        {/* Floating Stats */}
-        <div className="container mx-auto px-4 mt-16">
-          <motion.div 
-            className="bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-6 grid grid-cols-1 md:grid-cols-3 gap-8"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            {[
-              { icon: <Clock className="text-blue-600" size={32} />, stat: "24/7", text: "Emergency Service" },
-              { icon: <Heart className="text-red-600" size={32} />, stat: "98%", text: "Patient Satisfaction" },
-              { icon: <AlertTriangle className="text-yellow-500" size={32} />, stat: "8 min", text: "Average Response Time" }
-            ].map((item, index) => (
-              <motion.div 
-                key={index}
-                className="flex items-center"
-                whileHover={{ scale: 1.05 }}
-              >
-                <div className="mr-4">{item.icon}</div>
-                <div>
-                  <div className="text-3xl font-bold text-gray-800">{item.stat}</div>
-                  <div className="text-gray-600">{item.text}</div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Services Section */}
-      <section id="services" className="py-20 bg-gradient-to-b from-gray-100 to-white relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div
-            className="absolute w-96 h-96 rounded-full bg-blue-200/30 blur-3xl"
-            animate={{ 
-              x: [0, 30, 0],
-              y: [0, 15, 0],
+            className="relative w-64 h-64"
+            animate={{
+              scale: [1, 1.1, 1],
+              rotate: [0, 5, -5, 0]
             }}
-            transition={{ 
+            transition={{
+              duration: 6,
               repeat: Infinity,
-              duration: 8,
-              ease: "easeInOut" 
+              ease: "easeInOut"
             }}
-            style={{ top: '10%', right: '5%' }}
-          />
-          <motion.div
-            className="absolute w-64 h-64 rounded-full bg-red-200/20 blur-3xl"
-            animate={{ 
-              x: [0, -20, 0],
-              y: [0, 10, 0],
-            }}
-            transition={{ 
-              repeat: Infinity,
-              duration: 10,
-              ease: "easeInOut" 
-            }}
-            style={{ bottom: '5%', left: '10%' }}
-          />
-        </div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800">Our Emergency Services</h2>
-            <div className="w-24 h-1 bg-red-600 mx-auto mt-4"></div>
-            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              We provide comprehensive emergency medical services with state-of-the-art equipment and highly trained professionals.
-            </p>
-          </motion.div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { title: "Emergency Response", desc: "Rapid response to medical emergencies with fully equipped ambulances and trained paramedics." },
-              { title: "Critical Care Transport", desc: "Specialized transport for critically ill patients between medical facilities." },
-              { title: "Advanced Life Support", desc: "Expert care for cardiac arrests, severe injuries, and other life-threatening conditions." },
-              { title: "Medical Standby", desc: "On-site medical support for events, sporting activities, and public gatherings." },
-              { title: "Disaster Response", desc: "Coordinated emergency services during natural disasters and major incidents." },
-              { title: "Community Training", desc: "CPR, first aid, and emergency preparedness training for community members." }
-            ].map((service, index) => (
-              <motion.div 
-                key={index}
-                className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden border border-gray-100"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ 
-                  y: -10, 
-                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-                  backgroundColor: "rgba(255, 255, 255, 0.95)"
-                }}
-              >
-                <motion.div 
-                  className="h-3 bg-blue-600"
-                  whileHover={{ height: "6px" }}
-                ></motion.div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-3">{service.title}</h3>
-                  <p className="text-gray-600">{service.desc}</p>
-                  <motion.button
-                    className="mt-4 text-blue-600 font-medium flex items-center"
-                    whileHover={{ x: 5 }}
-                  >
-                    Learn more
-                    <ChevronDown size={16} className="ml-1 transform rotate-270" />
-                  </motion.button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Emergency Call To Action */}
-      <section id="emergency" className="py-20 bg-gradient-to-r from-red-600 to-red-900 text-white relative overflow-hidden">
-        {/* Animated background elements */}
-        <motion.div 
-          className="absolute top-0 left-0 w-full h-full bg-black/10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0.05, 0.08, 0.05] }}
-          transition={{ duration: 4, repeat: Infinity }}
-        />
-        <div className="absolute inset-0">
-          {[...Array(8)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-32 h-32 rounded-full bg-white/5"
-              animate={{ 
-                scale: [1, 1.2, 1],
-                opacity: [0.1, 0.2, 0.1]
-              }}
-              transition={{ 
-                repeat: Infinity,
-                duration: 8 + i,
-                delay: i * 0.5,
-                ease: "easeInOut" 
-              }}
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-              }}
+            <Image
+              src="/ambulance-modern.png" // Make sure to add this image to your public folder
+              alt="Modern Ambulance Illustration"
+              fill
+              className="object-contain"
+              priority
             />
-          ))}
-        </div>
-        
-        <div className="container mx-auto px-4 relative z-10">
+          </motion.div>
+          
+          {/* Animated circles */}
           <motion.div 
-            className="flex flex-col lg:flex-row items-center justify-between"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            className="absolute inset-0"
+            animate={{
+              scale: [1, 1.2, 1],
+              opacity: [0.3, 0.1, 0.3]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
           >
-            <div className="lg:w-2/3 mb-10 lg:mb-0">
-              <motion.h2 
-                className="text-3xl md:text-4xl font-bold leading-tight"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                viewport={{ once: true }}
-              >
-                In Case of Emergency <br />Call <span className="text-4xl md:text-5xl">911</span> Immediately
-              </motion.h2>
-              <motion.p 
-                className="mt-4 text-lg max-w-2xl opacity-90"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                viewport={{ once: true }}
-              >
-                Our emergency response team is available 24/7. For non-urgent inquiries, 
-                use our contact form or chat assistant below.
-              </motion.p>
-              
-              <motion.div 
-                className="mt-8 flex flex-wrap gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-                viewport={{ once: true }}
-              >
-                <motion.div 
-                  className="bg-white text-red-600 px-6 py-3 rounded-full shadow-lg flex items-center"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Phone size={18} className="mr-2" />
-                  <span className="font-medium">Call Now: 911</span>
-                </motion.div>
-                <motion.div 
-                  className="border-2 border-white text-white px-6 py-3 rounded-full shadow-lg flex items-center"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setChatOpen(true)}
-                >
-                  <MessageCircle size={18} className="mr-2" />
-                  <span className="font-medium">Chat with Support</span>
-                </motion.div>
-              </motion.div>
-            </div>
-            
-            <motion.div 
-              className="lg:w-1/3 flex justify-center"
-              initial={{ scale: 0.9, opacity: 0 }}
-              whileInView={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-            >
-              <div className="relative w-64 h-64 md:w-80 md:h-80">
-                <div className="absolute inset-0 bg-white opacity-20 rounded-full animate-ping-slow"></div>
-                <div className="absolute inset-4 bg-white opacity-20 rounded-full animate-ping-medium"></div>
-                <div className="absolute inset-8 bg-white opacity-20 rounded-full animate-ping-fast"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="bg-white text-red-600 w-32 h-32 rounded-full flex items-center justify-center shadow-2xl">
-                    <Phone size={64} />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <div className="absolute inset-0 border-2 border-red-500/30 rounded-full"></div>
+            <div className="absolute inset-[15%] border-2 border-blue-500/30 rounded-full"></div>
+            <div className="absolute inset-[30%] border-2 border-purple-500/30 rounded-full"></div>
           </motion.div>
         </div>
-      </section>
+      </motion.div>
 
-      {/* About Us Section */}
-      <section id="about" className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-white to-gray-50"></div>
-        <div className="container mx-auto px-4 relative">
-          <div className="flex flex-col lg:flex-row items-center">
-            <motion.div 
-              className="lg:w-1/2 mb-12 lg:mb-0 lg:pr-12"
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
+      {/* Enhanced feature cards */}
+      <motion.div 
+        variants={itemVariants}
+        className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full"
+      >
+        <motion.div 
+          className="group relative bg-gradient-to-br from-white/50 to-white/30 dark:from-gray-800/50 dark:to-gray-800/30 rounded-2xl p-8 backdrop-blur-md border border-white/30 dark:border-gray-700/30 shadow-xl overflow-hidden"
+          whileHover={{ 
+            y: -10,
+            transition: { duration: 0.3 }
+          }}
+        >
+          {/* Add hover effect gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-800/60 rounded-xl flex items-center justify-center mb-6 group-hover:bg-red-200 dark:group-hover:bg-red-700/60 transition-colors duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-red-600 dark:text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Rapid Response</h3>
+            <p className="mb-6 text-gray-600 dark:text-gray-300">
+              Our AI-powered dispatch system reduces response times by up to 30% in rural communities, ensuring critical care reaches patients faster.
+            </p>
+            <motion.a
+              href="#learn-more"
+              className="inline-flex items-center text-red-600 dark:text-red-400 font-medium group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors"
+              whileHover={{ x: 5 }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-6">About LifeLine EMS</h2>
-              <p className="text-lg text-gray-600 mb-6">
-                LifeLine EMS has been providing exceptional emergency medical services to our community for over 25 years. 
-                Our mission is to deliver rapid, professional, and compassionate care when you need it most.
-              </p>
-              <p className="text-lg text-gray-600 mb-6">
-                Our team consists of certified paramedics, emergency medical technicians, and support staff who undergo 
-                continuous training to stay at the forefront of emergency medical care.
-              </p>
-              <div className="flex flex-wrap gap-4 mt-8">
-                <motion.div 
-                  className="flex items-center"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-blue-600 font-bold text-xl">25+</span>
-                  </div>
-                  <div>
-                    <span className="block text-gray-800 font-medium">Years of Experience</span>
-                  </div>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-red-600 font-bold text-xl">50+</span>
-                  </div>
-                  <div>
-                    <span className="block text-gray-800 font-medium">Certified Professionals</span>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              className="lg:w-1/2"
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              viewport={{ once: true }}
-            >
-              <div className="grid grid-cols-2 gap-4">
-                {[1, 2, 3, 4].map((i) => (
-                  <motion.div 
-                    key={i}
-                    className="rounded-xl overflow-hidden shadow-lg"
-                    whileHover={{ scale: 1.05, rotate: i % 2 === 0 ? 1 : -1 }}
-                  >
-                    <img 
-                      src={`/api/placeholder/300/300`} 
-                      alt={`Emergency Service Image ${i}`} 
-                      className="w-full h-48 object-cover"
-                    />
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+              Learn more <span className="ml-2">→</span>
+            </motion.a>
           </div>
-        </div>
-      </section>
+        </motion.div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-xl font-bold mb-4">LifeLine EMS</h3>
-              <p className="text-gray-400 mb-4">
-                Professional emergency medical services available 24/7.
-              </p>
-              <div className="flex space-x-4">
-                {['facebook', 'twitter', 'instagram'].map((social) => (
-                  <motion.a 
-                    key={social}
-                    href="#"
-                    className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center"
-                    whileHover={{ y: -3, backgroundColor: "#3182ce" }}
-                  >
-                    <span className="sr-only">{social}</span>
-                    {/* Icon placeholders */}
-                    <div className="w-5 h-5 bg-white rounded-sm"></div>
-                  </motion.a>
-                ))}
+        <motion.div 
+          className="group relative bg-gradient-to-br from-white/50 to-white/30 dark:from-gray-800/50 dark:to-gray-800/30 rounded-2xl p-8 backdrop-blur-md border border-white/30 dark:border-gray-700/30 shadow-xl overflow-hidden"
+          whileHover={{ 
+            y: -10,
+            transition: { duration: 0.3 }
+          }}
+        >
+          {/* Add hover effect gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          
+          <div className="relative z-10">
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-800/60 rounded-xl flex items-center justify-center mb-6 group-hover:bg-blue-200 dark:group-hover:bg-blue-700/60 transition-colors duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">Remote Diagnostics</h3>
+            <p className="mb-6 text-gray-600 dark:text-gray-300">
+              Advanced telemedicine capabilities allow EMTs to connect with specialists for remote diagnostics and treatment guidance in the field.
+            </p>
+            <motion.a
+              href="#features"
+              className="inline-flex items-center text-blue-600 dark:text-blue-400 font-medium group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors"
+              whileHover={{ x: 5 }}
+            >
+              Explore features <span className="ml-2">→</span>
+            </motion.a>
+          </div>
+        </motion.div>
+      </motion.div>
+
+      <motion.div 
+        variants={fadeInUpVariants}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full"
+      >
+        <motion.div 
+          className="bg-white/30 dark:bg-gray-800/30 rounded-xl p-6 backdrop-blur-md border border-white/30 dark:border-gray-700/30 shadow-lg relative overflow-hidden group"
+          whileHover={{ y: -5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <motion.div
+            className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-800/60 flex items-center justify-center mb-4"
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.5 }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+            </svg>
+          </motion.div>
+          <h3 className="font-medium text-gray-900 dark:text-white mb-2">GPS Mapping</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Advanced routing algorithms find the fastest path even in remote areas.</p>
+        </motion.div>
+
+        <motion.div 
+          className="bg-white/30 dark:bg-gray-800/30 rounded-xl p-6 backdrop-blur-md border border-white/30 dark:border-gray-700/30 shadow-lg relative overflow-hidden group"
+          whileHover={{ y: -5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <motion.div
+            className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-800/60 flex items-center justify-center mb-4"
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.5 }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-600 dark:text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </motion.div>
+          <h3 className="font-medium text-gray-900 dark:text-white mb-2">Medical AI</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">AI assistance for first responders to guide emergency procedures.</p>
+        </motion.div>
+
+        <motion.div 
+          className="bg-white/30 dark:bg-gray-800/30 rounded-xl p-6 backdrop-blur-md border border-white/30 dark:border-gray-700/30 shadow-lg relative overflow-hidden group"
+          whileHover={{ y: -5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <motion.div
+            className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800/60 flex items-center justify-center mb-4"
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.5 }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </motion.div>
+          <h3 className="font-medium text-gray-900 dark:text-white mb-2">Satellite Communication</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300">Maintain connections even in areas with no cellular coverage.</p>
+        </motion.div>
+      </motion.div>
+
+      <motion.div 
+        variants={itemVariants}
+        className="flex gap-6 flex-col sm:flex-row justify-center w-full max-w-lg mx-auto"
+      >
+        <motion.a
+          whileHover={{ scale: 1.05, y: -5 }}
+          whileTap={{ scale: 0.98 }}
+          className="relative overflow-hidden flex-1 rounded-xl flex items-center justify-center bg-gradient-to-r from-red-600 to-blue-600 text-white gap-3 font-medium text-base h-14 px-7 shadow-lg group"
+          href="#contact"
+        >
+          <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-red-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+          <span className="relative flex items-center gap-3">
+            <motion.div 
+              animate={{ 
+                y: [0, -3, 0],
+                rotate: [0, 5, 0, -5, 0] 
+              }} 
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </motion.div>
+            Request Demo
+          </span>
+        </motion.a>
+        
+        <motion.a
+          whileHover={{ scale: 1.05, y: -5 }}
+          whileTap={{ scale: 0.98 }}
+          className="relative overflow-hidden flex-1 rounded-xl flex items-center justify-center bg-white/70 dark:bg-gray-900/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white gap-3 font-medium text-base h-14 px-7 shadow-md group"
+          href="#documentation"
+        >
+          <span className="absolute inset-0 w-full h-full bg-white dark:bg-gray-800 opacity-0 group-hover:opacity-40 transition-opacity duration-300"></span>
+          <span className="relative flex items-center gap-3">
+            <motion.div animate={{ rotate: [0, 10, 0, -10, 0] }} transition={{ repeat: Infinity, duration: 5 }}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </motion.div>
+            Documentation
+          </span>
+        </motion.a>
+      </motion.div>
+      
+      <motion.footer 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.2, duration: 0.5 }}
+        className="max-w-5xl mx-auto mt-24 relative z-10"
+      >
+        <div className="bg-white/30 dark:bg-gray-800/30 backdrop-blur-md rounded-2xl p-8 border border-white/30 dark:border-gray-700/30 shadow-lg">
+          <h3 className="text-lg font-semibold mb-6 text-center text-gray-800 dark:text-white">EMS Rural Solutions</h3>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <motion.a
+              whileHover={{ y: -5, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
+              className="flex flex-col items-center gap-4 p-6 rounded-xl bg-white/20 dark:bg-gray-700/20 border border-white/30 dark:border-gray-600/30 transition-colors"
+              href="#training"
+            >
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-800/60 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                </svg>
               </div>
-            </div>
+              <span className="text-gray-800 dark:text-gray-200 font-medium">Training</span>
+            </motion.a>
             
-            <div>
-              <h3 className="text-xl font-bold mb-4">Services</h3>
-              <ul className="space-y-2">
-                {['Emergency Response', 'Critical Care', 'Medical Standby', 'Training Programs'].map((item) => (
-                  <motion.li key={item} whileHover={{ x: 3 }}>
-                    <a href="#" className="text-gray-400 hover:text-white">{item}</a>
-                  </motion.li>
-                ))}
-              </ul>
-            </div>
+            <motion.a
+              whileHover={{ y: -5, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
+              className="flex flex-col items-center gap-4 p-6 rounded-xl bg-white/20 dark:bg-gray-700/20 border border-white/30 dark:border-gray-600/30 transition-colors"
+              href="#case-studies"
+            >
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-800/60 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 dark:text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span className="text-gray-800 dark:text-gray-200 font-medium">Case Studies</span>
+            </motion.a>
             
-            <div>
-              <h3 className="text-xl font-bold mb-4">Contact</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li>123 Medical Center Drive</li>
-                <li>Cityville, State 12345</li>
-                <li>Emergency: 911</li>
-                <li>Non-emergency: (555) 123-4567</li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-xl font-bold mb-4">Newsletter</h3>
-              <p className="text-gray-400 mb-4">
-                Subscribe to our newsletter for health tips and updates.
-              </p>
-              <form className="flex">
-                <input 
-                  type="email" 
-                  placeholder="Your email"
-                  className="px-4 py-2 rounded-l-lg w-full focus:outline-none text-gray-800"
-                />
-                <motion.button
-                  className="bg-blue-600 text-white px-4 py-2 rounded-r-lg"
-                  whileHover={{ backgroundColor: "#3182ce" }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Send size={16} />
-                </motion.button>
-              </form>
-            </div>
+            <motion.a
+              whileHover={{ y: -5, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
+              className="flex flex-col items-center gap-4 p-6 rounded-xl bg-white/20 dark:bg-gray-700/20 border border-white/30 dark:border-gray-600/30 transition-colors"
+              href="#contact-us"
+            >
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-800/60 rounded-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <span className="text-gray-800 dark:text-gray-200 font-medium">Contact Us</span>
+            </motion.a>
           </div>
           
-          <div className="mt-12 pt-8 border-t border-gray-800 text-center text-gray-500">
-            <p>&copy; {new Date().getFullYear()} LifeLine EMS. All rights reserved.</p>
+          <div className="mt-8 flex justify-center">
+            <motion.p 
+              className="text-sm text-gray-500 dark:text-gray-400"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5 }}
+            >
+              Saving lives through technology ❤️
+            </motion.p>
           </div>
         </div>
-      </footer>
-
-      {/* Chat Widget */}
-      <AnimatePresence>
-        {!chatOpen && (
-          <motion.button
-            className="fixed bottom-6 right-6 bg-blue-600/90 backdrop-blur-sm text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center"
-            onClick={() => setChatOpen(true)}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ 
-              scale: 1.1, 
-              backgroundColor: "rgba(49, 130, 206, 0.9)",
-              boxShadow: "0 0 20px rgba(49, 130, 206, 0.5)"
-            }}
-            whileTap={{ scale: 0.9 }}
-          >
-            <MessageCircle size={28} />
-          </motion.button>
-        )}
-        
-        {chatOpen && (
-          <motion.div
-            className="fixed bottom-6 right-6 w-80 md:w-96 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 border border-gray-100"
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 20, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            style={{ height: "500px" }}
-          >
-            <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center mr-3">
-                  <MessageCircle size={20} className="text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold">LifeLine Support</h3>
-                  <div className="flex items-center text-sm">
-                    <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                    <span>Online</span>
-                  </div>
-                </div>
-              </div>
-              <button 
-                onClick={() => setChatOpen(false)}
-                className="text-white hover:bg-blue-700 p-1 rounded-full"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-              <div className="space-y-4">
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div 
-                      className={`max-w-3/4 rounded-2xl px-4 py-2 ${
-                        msg.sender === 'user' 
-                          ? 'bg-blue-600 text-white rounded-tr-none' 
-                          : 'bg-white text-gray-800 shadow rounded-tl-none'
-                      }`}
-                    >
-                      {msg.text}
-                      <div 
-                        className={`text-xs mt-1 ${
-                          msg.sender === 'user' ? 'text-blue-200' : 'text-gray-500'
-                        }`}
-                      >
-                        {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="p-4 border-t">
-              {messages.some(msg => msg.sender === 'bot' && msg.text.includes('emergency')) && (
-                <motion.div 
-                  className="text-red-600 text-sm mb-2 flex items-center"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <AlertTriangle size={16} className="mr-1" />
-                  For emergencies, please call 911 immediately.
-                </motion.div>
-              )}
-              <form 
-                className="flex items-center"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendMessage();
-                }}
-              >
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message here..."
-                  className="flex-1 border border-gray-300 rounded-l-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                />
-                <motion.button
-                  className="bg-blue-600 text-white p-2 rounded-r-full"
-                  whileHover={{ backgroundColor: "#3182ce" }}
-                  whileTap={{ scale: 0.95 }}
-                  type="submit"
-                >
-                  <Send size={20} />
-                </motion.button>
-              </form>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <style jsx global>{`
-        @keyframes ping-slow {
-          0% { transform: scale(0.95); opacity: 1; }
-          50% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(0.95); opacity: 1; }
-        }
-        @keyframes ping-medium {
-          0% { transform: scale(0.85); opacity: 1; }
-          50% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(0.85); opacity: 1; }
-        }
-        @keyframes ping-fast {
-          0% { transform: scale(0.75); opacity: 1; }
-          50% { transform: scale(1); opacity: 0.4; }
-          100% { transform: scale(0.75); opacity: 1; }
-        }
-        .animate-ping-slow {
-          animation: ping-slow 3s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        .animate-ping-medium {
-          animation: ping-medium 2.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        .animate-ping-fast {
-          animation: ping-fast 2s cubic-bezier(00, 0.2, 1) infinite;
-        }
-      `}</style>
-
-      {/* Animation keyframes for custom animations */}
-      <style jsx global>{`
-        html {
-          scroll-behavior: smooth;
-        }
-        body {
-          overflow-x: hidden;
-        }
-        
-        @keyframes float {
-          0% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-          100% { transform: translateY(0px); }
-        }
-        
-        .float {
-          animation: float 6s ease-in-out infinite;
-        }
-        
-        @keyframes pulse-glow {
-          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-          70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-        }
-        
-        .pulse-glow {
-          animation: pulse-glow 2s infinite;
-        }
-      `}</style>
+      </motion.footer>
     </div>
   );
-}
-
-// Add the following to your global CSS file or styles/globals.css
-/* 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-*/
-
-// Add to next.config.js for image optimization
-/*
-module.exports = {
-  images: {
-    domains: ['images.unsplash.com'],
-  },
-};
-*/
-
-// pages/_app.js
-/*
-import '../styles/globals.css';
-
-function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />;
-}
-
-export default MyApp;
-*/
+} 
