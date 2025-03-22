@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Animation variants
+// Enhanced animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -35,11 +35,26 @@ const containerVariants = {
 };
 
 const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
+  hidden: { y: 20, opacity: 0, scale: 0.95 },
   show: {
     y: 0,
     opacity: 1,
-    transition: { type: "spring", stiffness: 100 }
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 }
+  }
+};
+
+const cardHoverVariants = {
+  initial: { scale: 1 },
+  hover: {
+    scale: 1.03,
+    y: -5,
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+    transition: { 
+      type: "spring", 
+      stiffness: 300, 
+      damping: 20 
+    }
   }
 };
 
@@ -342,7 +357,7 @@ export default function AmbulancesDetailPage() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-wrap items-center justify-between gap-4 mb-6 p-3 bg-slate-800/40 rounded-md border border-slate-700/50"
+            className="flex flex-wrap items-center justify-between gap-4 mb-6 p-3 bg-slate-800/40 rounded-2xl shadow-lg border border-slate-700/50 backdrop-blur-sm"
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-slate-300 flex items-center gap-1">
@@ -397,11 +412,16 @@ export default function AmbulancesDetailPage() {
               <motion.div
                 key={ambulance.id}
                 variants={itemVariants}
-                whileHover={{ y: -5, boxShadow: "0 15px 30px rgba(0,0,0,0.2)" }}
-                className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md border border-slate-700/50 overflow-hidden shadow-lg"
+                whileHover={cardHoverVariants.hover}
+                className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5"
               >
                 {/* Glass effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-slate-500/5 to-transparent"></div>
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-br from-transparent via-slate-500/5 to-transparent rounded-2xl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                ></motion.div>
                 
                 {/* Status indicator */}
                 <motion.div 
@@ -411,7 +431,7 @@ export default function AmbulancesDetailPage() {
                     ambulance.status === "Maintenance" ? "bg-amber-500" : "bg-slate-500"
                   }`}
                   animate={{ 
-                    scale: [1, 1.2, 1],
+                    scale: [1, 1.5, 1],
                     opacity: [0.7, 1, 0.7]
                   }}
                   transition={{ 

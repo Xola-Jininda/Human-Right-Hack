@@ -43,35 +43,39 @@ export function SmartAmbulanceAllocator({
     setError(null);
     
     try {
-      // Simulate API call since we can't access the real API
-      setTimeout(() => {
-        // Simple algorithm: prioritize High priority bookings that are pending
-        const pendingBookings = bookings.filter(b => b.status === "Pending");
-        const highPriority = pendingBookings.filter(b => b.priority === "High");
-        const mediumPriority = pendingBookings.filter(b => b.priority === "Medium");
-        const lowPriority = pendingBookings.filter(b => b.priority === "Low");
-        
-        // Combine in order of priority
-        const prioritizedBookings = [...highPriority, ...mediumPriority, ...lowPriority];
-        
-        // Only allocate up to available ambulances
-        const toAllocate = prioritizedBookings.slice(0, availableAmbulances);
-        const allocatedIds = toAllocate.map(b => b.id);
-        
-        const result = {
-          allocations: allocatedIds,
-          reasoning: `Allocated ${allocatedIds.length} ambulances based on priority order.\nHigh Priority: ${highPriority.length} bookings\nMedium Priority: ${mediumPriority.length} bookings\nLow Priority: ${lowPriority.length} bookings\n\nAllocated ${Math.min(highPriority.length, availableAmbulances)} high priority bookings first.`
-        };
-        
-        setAllocationResult(result);
-        
-        // Call the callback with allocated booking IDs
-        if (result.allocations && result.allocations.length > 0) {
-          onAllocationsComplete(result.allocations);
-        }
-        
-        setIsLoading(false);
-      }, 2000); // Simulate 2-second API delay
+      // Call the real OpenAI API endpoint
+      const response = await fetch('/api/allocate-ambulances', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          facilities: bookings.map(booking => ({
+            facilityId: booking.id,
+            facilityName: booking.patientName,
+            district: booking.location,
+            ambulancesDeployed: 0, // Default value
+            operationalStatus: "Operational", // Default value
+            populationServed: 1000, // Default value
+            roadCondition: "Moderate", // Default value
+            priorityTier: booking.priority // Map booking priority to facility priority
+          })),
+          availableAmbulances
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get AI allocation');
+      }
+      
+      const result = await response.json();
+      
+      setAllocationResult(result);
+      
+      // Call the callback with allocated booking IDs
+      if (result.allocations && result.allocations.length > 0) {
+        onAllocationsComplete(result.allocations);
+      }
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -163,9 +167,10 @@ export function SmartAmbulanceAllocator({
       
       <CardFooter className="border-t border-slate-700/50 pt-4">
         <Button 
+          id="run-ai-allocation-btn"
           onClick={runAIAllocation}
           disabled={isLoading || availableAmbulances === 0 || bookings.filter(b => b.status === "Pending").length === 0}
-          className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500"
+          className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 rounded-xl"
         >
           {isLoading ? "Processing..." : "Run AI Allocation"}
         </Button>

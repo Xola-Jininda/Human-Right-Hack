@@ -69,11 +69,31 @@ const itemVariants = {
   }
 };
 
+// Enhanced card animation variants
+const cardVariants = {
+  hidden: { y: 20, opacity: 0, scale: 0.95 },
+  show: {
+    y: 0,
+    opacity: 1,
+    scale: 1,
+    transition: { 
+      type: "spring", 
+      stiffness: 100,
+      damping: 15
+    }
+  }
+};
+
 const cardHoverVariants = {
+  initial: { scale: 1 },
   hover: {
+    scale: 1.03,
     y: -5,
-    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
-    transition: { type: "spring", stiffness: 400 }
+    transition: { 
+      type: "spring", 
+      stiffness: 300, 
+      damping: 20 
+    }
   }
 };
 
@@ -83,7 +103,7 @@ const sidebarItemVariants = {
   show: { x: 0, opacity: 1, transition: { type: "spring", stiffness: 100 } }
 };
 
-export default function AmbulancesPage() {
+export default function DashboardPage() {
   const [selectedArea, setSelectedArea] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -144,22 +164,22 @@ export default function AmbulancesPage() {
 
   // Sidebar items array
   const sidebarItems = [
-    { icon: LayoutDashboard, label: "Dashboard", active: true },
-    { icon: Calendar, label: "Bookings", active: false },
-    { icon: Ambulance, label: "Ambulances", active: false },
+    { icon: LayoutDashboard, label: "Dashboard", active: true, path: "/dashboard" },
+    { icon: Calendar, label: "Bookings", active: false, path: "/dashboard/booking" },
+    { icon: Ambulance, label: "Ambulances", active: false, path: "/dashboard/ambulances" },
   ];
 
   return (
     <div className="flex h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-navy-900 text-white">
       {/* Sidebar */}
       <motion.div 
-        initial={{ width: sidebarOpen ? 256 : 80, opacity: 0 }}
+        initial={{ width: sidebarOpen ? 256 : 0, opacity: sidebarOpen ? 1 : 0 }}
         animate={{ 
-          width: sidebarOpen ? 256 : 80, 
-          opacity: 1,
+          width: sidebarOpen ? 256 : 0, 
+          opacity: sidebarOpen ? 1 : 0,
           transition: { duration: 0.3, ease: "easeInOut" }
         }}
-        className="h-screen border-r border-slate-700/50 bg-slate-900/80 backdrop-blur-sm z-20"
+        className={`h-screen border-r border-slate-700/50 bg-slate-900/80 backdrop-blur-sm z-20 ${!sidebarOpen && 'overflow-hidden'}`}
       >
         <div className="p-4 flex justify-between items-center border-b border-slate-700/50">
           <motion.h2 
@@ -173,14 +193,6 @@ export default function AmbulancesPage() {
           >
             EMS Admin
           </motion.h2>
-          <motion.button 
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700/50"
-          >
-            <Menu className="h-5 w-5" />
-          </motion.button>
         </div>
         
         <div className="px-3 py-6">
@@ -189,13 +201,7 @@ export default function AmbulancesPage() {
               {sidebarItems.map((item, index) => (
                 <Link
                   key={item.label}
-                  href={
-                    item.label === "Dashboard" 
-                      ? "/dashboard" 
-                      : item.label === "Bookings" 
-                        ? "/dashboard/booking" 
-                        : `/dashboard/${item.label.toLowerCase()}`
-                  }
+                  href={item.path}
                   className="block"
                 >
                   <motion.div
@@ -256,20 +262,16 @@ export default function AmbulancesPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto h-screen p-4 sm:p-6 md:p-8 relative">
-        {/* Hamburger Menu - Top Left */}
+        {/* Single hamburger menu that's always visible */}
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+          transition={{ duration: 0.3 }}
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-4 left-4 p-2 bg-slate-800/70 hover:bg-slate-700/70 rounded-md border border-slate-700/50 z-30 flex items-center justify-center"
+          className="fixed top-4 left-4 p-2 bg-slate-800/70 hover:bg-slate-700/70 rounded-md border border-slate-700/50 z-30 flex items-center justify-center"
           aria-label="Toggle menu"
         >
-          {sidebarOpen ? (
-            <ChevronLeft className="h-5 w-5 text-slate-300" />
-          ) : (
-            <Menu className="h-5 w-5 text-slate-300" />
-          )}
+          <Menu className="h-5 w-5 text-slate-300" />
         </motion.button>
         
         {/* Dashboard Header */}
@@ -358,10 +360,12 @@ export default function AmbulancesPage() {
           >
             {/* Ambulance Stats Card */}
             <motion.div
-              variants={itemVariants}
+              variants={cardVariants}
+              whileHover={cardHoverVariants.hover}
+              initial="initial"
               className="col-span-1"
             >
-              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
+              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
                 <div className="absolute inset-0 bg-slate-500/5"></div>
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/20 to-cyan-500/0 rounded-bl-md"></div>
                 
@@ -406,10 +410,12 @@ export default function AmbulancesPage() {
             
             {/* Response Time Card */}
             <motion.div
-              variants={itemVariants}
+              variants={cardVariants}
+              whileHover={cardHoverVariants.hover}
+              initial="initial"
               className="col-span-1"
             >
-              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
+              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
                 <div className="absolute inset-0 bg-slate-500/5"></div>
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-blue-500/0 rounded-bl-md"></div>
                 
@@ -454,10 +460,12 @@ export default function AmbulancesPage() {
             
             {/* Alerts Card */}
             <motion.div
-              variants={itemVariants}
+              variants={cardVariants}
+              whileHover={cardHoverVariants.hover}
+              initial="initial"
               className="col-span-1"
             >
-              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
+              <div className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5 h-full">
                 <div className="absolute inset-0 bg-slate-500/5"></div>
                 <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-amber-500/20 to-orange-500/0 rounded-bl-md"></div>
                 
@@ -508,8 +516,10 @@ export default function AmbulancesPage() {
           >
             {/* Pie Chart */}
             <motion.div
-              variants={itemVariants}
-              className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5"
+              variants={cardVariants}
+              whileHover={cardHoverVariants.hover}
+              initial="initial"
+              className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5"
             >
               <div className="absolute inset-0 bg-slate-500/5"></div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-teal-500/20 to-emerald-500/0 rounded-bl-md"></div>
@@ -572,8 +582,10 @@ export default function AmbulancesPage() {
             
             {/* Bar Chart */}
             <motion.div
-              variants={itemVariants}
-              className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5"
+              variants={cardVariants}
+              whileHover={cardHoverVariants.hover}
+              initial="initial"
+              className="relative bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm p-5"
             >
               <div className="absolute inset-0 bg-slate-500/5"></div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-indigo-500/0 rounded-bl-md"></div>
@@ -648,26 +660,32 @@ export default function AmbulancesPage() {
             {mockAmbulanceData.areas.map((area, index) => (
               <motion.div
                 key={area.id}
-                variants={itemVariants}
+                variants={cardVariants}
                 whileHover={{ 
-                  scale: 1.03, 
-                  y: -5,
+                  scale: 1.05, 
+                  y: -8,
                   boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+                  transition: { type: "spring", stiffness: 300, damping: 20 }
                 }}
-                className={`relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-md shadow-xl p-5 cursor-pointer backdrop-blur-sm overflow-hidden
+                className={`relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl shadow-xl p-5 cursor-pointer backdrop-blur-sm overflow-hidden
                   ${selectedArea === area.id 
                       ? 'ring-2 ring-blue-500 border border-blue-500/50' 
                       : 'border border-slate-700/50 hover:border-slate-600/50'}`}
                 onClick={() => setSelectedArea(area.id)}
               >
-                {/* Glass effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-slate-500/5 to-transparent"></div>
+                {/* Glass effect with curved border */}
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-br from-transparent via-slate-500/5 to-transparent rounded-2xl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                ></motion.div>
                 
-                {/* Status indicator */}
+                {/* Status indicator with pulse animation */}
                 <motion.div 
                   className="absolute top-3 right-3 h-2 w-2 rounded-full bg-emerald-500"
                   animate={{ 
-                    scale: [1, 1.2, 1],
+                    scale: [1, 1.5, 1],
                     opacity: [0.7, 1, 0.7]
                   }}
                   transition={{ 
@@ -689,7 +707,7 @@ export default function AmbulancesPage() {
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center relative z-10 p-3 bg-slate-800/50 rounded-md border border-slate-700/50">
+                <div className="flex justify-between items-center relative z-10 p-3 bg-slate-800/50 rounded-xl border border-slate-700/50">
                   <div className="text-center">
                     <p className="text-xs text-slate-400 mb-1">Total Units</p>
                     <p className="font-semibold text-white text-lg">{area.total}</p>

@@ -32,7 +32,7 @@ import Link from "next/link";
 import { SmartAmbulanceAllocator } from "@/components/smartambulance";
 import { DatabaseUpload } from "@/components/databaseupload";
 
-// Animation variants (keeping the same as original)
+// Enhanced animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -45,11 +45,25 @@ const containerVariants = {
 };
 
 const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
+  hidden: { y: 20, opacity: 0, scale: 0.95 },
   show: {
     y: 0,
     opacity: 1,
-    transition: { type: "spring", stiffness: 100 }
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 }
+  }
+};
+
+const cardHoverVariants = {
+  initial: { scale: 1 },
+  hover: {
+    scale: 1.03,
+    y: -5,
+    transition: { 
+      type: "spring", 
+      stiffness: 300, 
+      damping: 20 
+    }
   }
 };
 
@@ -57,6 +71,18 @@ const sidebarItemVariants = {
   hidden: { x: -20, opacity: 0 },
   show: { x: 0, opacity: 1, transition: { type: "spring", stiffness: 100 } }
 };
+
+// Add Facility interface
+interface Facility {
+  facilityId: string;
+  facilityName: string;
+  district: string;
+  ambulancesDeployed: number;
+  operationalStatus: string;
+  populationServed: number;
+  roadCondition: string;
+  priorityTier: "Critical" | "High" | "Medium" | "Low";
+}
 
 interface Booking {
   id: string;
@@ -137,10 +163,33 @@ export default function AdminBookings() {
     setAvailableAmbulances(prev => prev - allocationsCount);
   };
 
-  const handleBookingsLoaded = (newBookings: Booking[], ambulanceCount: number) => {
+  const handleBookingsLoaded = (facilities: Facility[], ambulanceCount: number) => {
+    // Convert Facility objects to Booking objects
+    const newBookings: Booking[] = facilities.map(facility => ({
+      id: facility.facilityId,
+      patientName: facility.facilityName,
+      location: facility.district,
+      symptoms: "From facility data",  // Default value
+      timestamp: new Date().toISOString(),
+      priority: facility.priorityTier === "Critical" ? "High" : 
+                facility.priorityTier === "High" ? "High" : 
+                facility.priorityTier === "Medium" ? "Medium" : "Low",
+      status: "Pending"
+    }));
+    
     setBookings(newBookings);
     setAvailableAmbulances(ambulanceCount);
     setShowUpload(false);
+    
+    // Auto-run AI allocation after loading
+    setTimeout(() => {
+      if (newBookings.length > 0 && ambulanceCount > 0) {
+        const smartAllocatorElement = document.getElementById('run-ai-allocation-btn');
+        if (smartAllocatorElement) {
+          smartAllocatorElement.click();
+        }
+      }
+    }, 1500);
   };
 
   const sidebarItems = [
@@ -285,7 +334,7 @@ export default function AdminBookings() {
                 exit={{ opacity: 0, y: -20 }}
                 className="mb-6"
               >
-                <DatabaseUpload onBookingsLoaded={handleBookingsLoaded} />
+                <DatabaseUpload onFacilitiesLoaded={handleBookingsLoaded} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -295,7 +344,12 @@ export default function AdminBookings() {
             <>
               {/* Stats Cards */}
               <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" variants={containerVariants}>
-                <motion.div variants={itemVariants} className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-md">
+                <motion.div 
+                  variants={itemVariants} 
+                  whileHover={cardHoverVariants.hover}
+                  initial="initial"
+                  className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm"
+                >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
                       <Clock className="w-5 h-5 text-amber-400" />
@@ -309,7 +363,12 @@ export default function AdminBookings() {
                   </CardContent>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-md">
+                <motion.div 
+                  variants={itemVariants} 
+                  whileHover={cardHoverVariants.hover}
+                  initial="initial"
+                  className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm"
+                >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
                       <Ambulance className="w-5 h-5 text-emerald-400" />
@@ -323,7 +382,12 @@ export default function AdminBookings() {
                   </CardContent>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-md">
+                <motion.div 
+                  variants={itemVariants} 
+                  whileHover={cardHoverVariants.hover}
+                  initial="initial"
+                  className="relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm"
+                >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
                       <MapPin className="w-5 h-5 text-blue-400" />
@@ -343,7 +407,9 @@ export default function AdminBookings() {
                 {/* Bookings Table */}
                 <motion.div 
                   variants={itemVariants}
-                  className="lg:col-span-2 bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-md border border-slate-700/50"
+                  whileHover={cardHoverVariants.hover}
+                  initial="initial"
+                  className="lg:col-span-2 bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl shadow-xl border border-slate-700/50 overflow-hidden backdrop-blur-sm"
                 >
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
@@ -406,7 +472,11 @@ export default function AdminBookings() {
                 </motion.div>
 
                 {/* AI Allocator */}
-                <motion.div variants={itemVariants}>
+                <motion.div 
+                  variants={itemVariants}
+                  whileHover={cardHoverVariants.hover}
+                  initial="initial"
+                >
                   <SmartAmbulanceAllocator
                     bookings={bookings}
                     availableAmbulances={availableAmbulances}

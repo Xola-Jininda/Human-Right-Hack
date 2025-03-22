@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle2, Upload, Download, FileSpreadsheet, PieChart } from "lucide-react";
+import { AlertCircle, CheckCircle2, Upload, Download, FileSpreadsheet, PieChart, Brain, Badge, RefreshCw } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import * as XLSX from "xlsx";
 
