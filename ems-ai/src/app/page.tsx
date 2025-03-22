@@ -21,6 +21,7 @@ declare global {
       [key: string]: any;
     }
   }
+  
 
 export default function Home() {
     // Default images for slideshow
@@ -37,14 +38,11 @@ export default function Home() {
     const [isEnlarged, setIsEnlarged] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [language, setLanguage] = useState("en");
-    const [chatOpen, setChatOpen] = useState(false);
 
     // Botsonic configuration
     const BOTSONIC_SERVICE_BASE_URL = "https://api-azure.botsonic.ai";
     const BOTSONIC_TOKEN = "1ca6ae32-bb74-4141-bdf8-2f71c7e2a544";
 
-    // Add state to track if chat is open
-    const [chatOpen, setChatOpen] = useState(false);
 
     // Shorter, more impactful headlines - exactly 2 lines with fewer words
     const headlines = [
@@ -104,6 +102,7 @@ export default function Home() {
           js.async = true;
           fjs?.parentNode?.insertBefore(js, fjs);
         })(window, document, "script", "Botsonic", "https://widget.botsonic.com/CDN/botsonic.min.js");
+    
   // Initialize Botsonic
   window.Botsonic("init", {
     serviceBaseUrl: BOTSONIC_SERVICE_BASE_URL,
@@ -129,15 +128,6 @@ export default function Home() {
   }
 }, []);
 
-const toggleEnlarge = () => {
-    setIsEnlarged((prev) => !prev);
-    // Optional: Adjust Botsonic widget size (if supported by Botsonic API)
-    const widget = document.querySelector(".botsonic_widget_container") as HTMLElement;
-    if (widget) {
-      widget.style.width = isEnlarged ? "300px" : "100%";
-      widget.style.height = isEnlarged ? "400px" : "80vh";
-    }
-  };
 
     // Add effect to rotate headlines
     useEffect(() => {
@@ -148,25 +138,17 @@ const toggleEnlarge = () => {
         return () => clearInterval(headlineInterval);
     }, [headlines.length]);
 
+
     const toggleEnlarge = () => {
-        setIsEnlarged((prev: boolean) => !prev);
+        setIsEnlarged((prev) => !prev);
         // Optional: Adjust Botsonic widget size (if supported by Botsonic API)
         const widget = document.querySelector(".botsonic_widget_container") as HTMLElement;
         if (widget) {
-            widget.style.width = isEnlarged ? "300px" : "100%";
-            widget.style.height = isEnlarged ? "400px" : "80vh";
+          widget.style.width = isEnlarged ? "300px" : "100%";
+          widget.style.height = isEnlarged ? "400px" : "80vh";
         }
-    };
-
-    // Add function to toggle chat visibility
-    const toggleChat = () => {
-        setChatOpen(prev => !prev);
-        if (!chatOpen) {
-            window.Botsonic("open", {});
-        } else {
-            window.Botsonic("close", {});
-        }
-    };
+      };
+    
 
     return (
         <>
@@ -174,6 +156,7 @@ const toggleEnlarge = () => {
             <div className="h-screen">
                 {/* Hero Section */}
                 <header className="relative h-screen w-full overflow-hidden">
+                    
                     {/* Images with correct z-index stacking */}
                     {images.map((image, index) => (
                         <motion.div
@@ -213,7 +196,7 @@ const toggleEnlarge = () => {
                                 </div>
                             </div>
                         </nav>
-                        <div id="botsonic_widget_container" className="w-full h-full" />
+                        
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
                             <div className="grid lg:grid-cols-2 gap-16 items-center">
                                 <div>
@@ -275,7 +258,7 @@ const toggleEnlarge = () => {
                             </div>
                         </div>
                     </div>
-
+                    <div id="botsonic_widget_container" className="w-full h-full" />
                     {/* Slide navigation dots with highest z-index */}
                     <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-30 flex space-x-2">
                         {images.map((_, index) => (
