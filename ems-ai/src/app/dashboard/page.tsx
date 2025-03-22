@@ -34,6 +34,35 @@ const mockAmbulanceData = {
 
 const COLORS = ["#00C49F", "#FF8042"];
 
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  show: {
+    y: 0,
+    opacity: 1,
+    transition: { type: "spring", stiffness: 100 }
+  }
+};
+
+const cardHoverVariants = {
+  hover: {
+    y: -5,
+    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+    transition: { type: "spring", stiffness: 400 }
+  }
+};
+
 export default function AmbulancesPage() {
   const [selectedArea, setSelectedArea] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -75,113 +104,158 @@ export default function AmbulancesPage() {
   }));
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-navy-900 text-white p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : -20 }}
         transition={{ duration: 0.5 }}
         className="mb-8"
       >
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <Ambulance className="text-blue-600" />
-              Ambulance Fleet Dashboard
-            </h1>
-            <p className="text-gray-500 mt-1">
+        <div className="flex flex-col items-center text-center justify-between mb-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="flex flex-col items-center"
+          >
+            <motion.h1 
+              className="text-2xl md:text-3xl font-bold flex items-center gap-2"
+            >
+              <motion.div
+                initial={{ rotate: -10, scale: 0.8 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+              >
+                <Ambulance className="text-blue-400" />
+              </motion.div>
+              <span className="bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent">
+                Ambulance Fleet Dashboard
+              </span>
+            </motion.h1>
+            <p className="text-gray-300 mt-1">
               {selectedArea 
                 ? `Viewing ambulances in ${displayedArea?.name}`
                 : "Real-time overview of all ambulance units"
               }
             </p>
-          </div>
-          
-          <div className="mt-4 sm:mt-0 flex gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search ambulances..."
-                className="pl-9 py-2 pr-4 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <button className="flex items-center gap-1 bg-white border rounded-lg px-3 py-2 text-sm font-medium">
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
-          </div>
+          </motion.div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div 
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05 }}
+            className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-4 border-2 border-gray-500 overflow-hidden group"
           >
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <Ambulance className="h-6 w-6 text-blue-600" />
-              </div>
+            {/* Glow effect */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/20 to-blue-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "200%" }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            />
+            <div className="flex items-center gap-3 relative z-10">
+              <motion.div 
+                className="bg-blue-900/50 p-3 rounded-lg"
+                whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5 }}
+              >
+                <Ambulance className="h-6 w-6 text-blue-400 " />
+              </motion.div>
               <div>
-                <p className="text-sm text-gray-500">Total Ambulances</p>
-                <h3 className="text-2xl font-bold">{stats.totalAmbulances}</h3>
+                <p className="text-sm text-gray-300">Total Ambulances</p>
+                <h3 className="text-2xl font-bold text-white">{stats.totalAmbulances}</h3>
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05 }}
+            className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-4 border border-gray-500 overflow-hidden group"
           >
-            <div className="flex items-center gap-3">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <Check className="h-6 w-6 text-green-600" />
-              </div>
+            {/* Glow effect */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-green-500/0 via-green-500/20 to-green-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "200%" }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            />
+            <div className="flex items-center gap-3 relative z-10">
+              <motion.div 
+                className="bg-green-900/50 p-3 rounded-lg"
+                whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5 }}
+              >
+                <Check className="h-6 w-6 text-green-400" />
+              </motion.div>
               <div>
-                <p className="text-sm text-gray-500">Available Units</p>
-                <h3 className="text-2xl font-bold">{stats.availableAmbulances}</h3>
+                <p className="text-sm text-gray-300">Available Units</p>
+                <h3 className="text-2xl font-bold text-white">{stats.availableAmbulances}</h3>
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.3 }}
-            className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05 }}
+            className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-4 border border-gray-500 overflow-hidden group"
           >
-            <div className="flex items-center gap-3">
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <Clock className="h-6 w-6 text-orange-600" />
-              </div>
+            {/* Glow effect */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-500/20 to-orange-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "200%" }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            />
+            <div className="flex items-center gap-3 relative z-10">
+              <motion.div 
+                className="bg-orange-900/50 p-3 rounded-lg"
+                whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5 }}
+              >
+                <Clock className="h-6 w-6 text-orange-400" />
+              </motion.div>
               <div>
-                <p className="text-sm text-gray-500">Avg. Response Time</p>
-                <h3 className="text-2xl font-bold">{stats.responseTimeAvg}</h3>
+                <p className="text-sm text-gray-300">Avg. Response Time</p>
+                <h3 className="text-2xl font-bold text-white">{stats.responseTimeAvg}</h3>
               </div>
             </div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
-            className="bg-white rounded-xl shadow-sm p-4 border border-gray-100"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05 }}
+            className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-4 border border-gray-500 overflow-hidden group"
           >
-            <div className="flex items-center gap-3">
-              <div className="bg-red-100 p-3 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
+            {/* Glow effect */}
+            <motion.div 
+              className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+              initial={{ x: "-100%" }}
+              whileHover={{ x: "200%" }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            />
+            <div className="flex items-center gap-3 relative z-10">
+              <motion.div 
+                className="bg-red-900/50 p-3 rounded-lg"
+                whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5 }}
+              >
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </motion.div>
               <div>
-                <p className="text-sm text-gray-500">Active Alerts</p>
-                <h3 className="text-2xl font-bold">{stats.alerts}</h3>
+                <p className="text-sm text-gray-300">Active Alerts</p>
+                <h3 className="text-2xl font-bold text-white">{stats.alerts}</h3>
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Chart Section */}
@@ -190,10 +264,18 @@ export default function AmbulancesPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: isLoaded ? 1 : 0, x: isLoaded ? 0 : -20 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 lg:col-span-2"
+          whileHover={{ scale: 1.02 }}
+          className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-5 border border-gray-500 lg:col-span-2 overflow-hidden group"
         >
-          <h2 className="text-lg font-semibold mb-4">Ambulance Status</h2>
-          <div className="h-[300px]">
+          {/* Glow effect */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/20 to-blue-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+            initial={{ x: "-100%" }}
+            whileHover={{ x: "200%" }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+          />
+          <h2 className="text-lg font-semibold mb-4 text-white relative z-10">Ambulance Status</h2>
+          <div className="h-[300px] relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -205,24 +287,24 @@ export default function AmbulancesPage() {
                   fill="#8884d8"
                   paddingAngle={5}
                   dataKey="value"
-                  label={({name, percent}: {name: string, percent: number}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "white" }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-4">
+          <div className="flex justify-center gap-6 mt-4 relative z-10">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-[#00C49F]"></div>
-              <span className="text-sm text-gray-600">Available</span>
+              <span className="text-sm text-gray-300">Available</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-[#FF8042]"></div>
-              <span className="text-sm text-gray-600">In Service</span>
+              <span className="text-sm text-gray-300">In Service</span>
             </div>
           </div>
         </motion.div>
@@ -231,19 +313,27 @@ export default function AmbulancesPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: isLoaded ? 1 : 0, x: isLoaded ? 0 : 20 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 lg:col-span-3"
+          whileHover={{ scale: 1.02 }}
+          className="relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-5 border border-gray-500 lg:col-span-3 overflow-hidden group"
         >
-          <h2 className="text-lg font-semibold mb-4">Distribution by Area</h2>
-          <div className="h-[300px]">
+          {/* Glow effect */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/20 to-teal-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+            initial={{ x: "-100%" }}
+            whileHover={{ x: "200%" }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+          />
+          <h2 className="text-lg font-semibold mb-4 text-white relative z-10">Distribution by Area</h2>
+          <div className="h-[300px] relative z-10">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={areaBarData}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="name" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", color: "white" }} />
                 <Legend />
                 <Bar dataKey="available" name="Available" fill="#00C49F" />
                 <Bar dataKey="inService" name="In Service" fill="#FF8042" />
@@ -260,14 +350,16 @@ export default function AmbulancesPage() {
         transition={{ duration: 0.5, delay: 0.5 }}
       >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Coverage Areas</h2>
+          <h2 className="text-lg font-semibold text-white">Coverage Areas</h2>
           {selectedArea && (
-            <button 
+            <motion.button 
               onClick={() => setSelectedArea(null)}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-sm text-blue-400 hover:text-blue-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               View All Areas
-            </button>
+            </motion.button>
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -277,34 +369,41 @@ export default function AmbulancesPage() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 * index }}
-              whileHover={{ scale: 1.03 }}
-              className={`bg-white rounded-xl shadow-sm p-4 border cursor-pointer
-                ${selectedArea === area.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-100'}`}
+              whileHover={{ scale: 1.05 }}
+              className={`relative bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl shadow-lg p-4 cursor-pointer overflow-hidden group
+                ${selectedArea === area.id ? 'border-blue-500 ring-2 ring-blue-500/30' : 'border border-gray-500'}`}
               onClick={() => setSelectedArea(area.id)}
             >
-              <div className="flex items-center justify-between mb-3">
+              {/* Glow effect */}
+              <motion.div 
+                className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/20 to-blue-500/0 pointer-events-none opacity-0 group-hover:opacity-100"
+                initial={{ x: "-100%" }}
+                whileHover={{ x: "200%" }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              />
+              <div className="flex items-center justify-between mb-3 relative z-10">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-gray-500" />
-                  <h3 className="font-medium">{area.name}</h3>
+                  <MapPin className="h-5 w-5 text-blue-400" />
+                  <h3 className="font-medium text-white">{area.name}</h3>
                 </div>
-                <div className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                <div className="text-xs px-2 py-1 bg-blue-900/50 text-blue-300 rounded-full">
                   {((area.available / area.total) * 100).toFixed(0)}% available
                 </div>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center relative z-10">
                 <div>
-                  <p className="text-xs text-gray-500">Total Units</p>
-                  <p className="font-semibold">{area.total}</p>
+                  <p className="text-xs text-gray-300">Total Units</p>
+                  <p className="font-semibold text-white">{area.total}</p>
                 </div>
-                <div className="h-8 w-px bg-gray-200"></div>
+                <div className="h-8 w-px bg-navy-600"></div>
                 <div>
-                  <p className="text-xs text-gray-500">Available</p>
-                  <p className="font-semibold text-green-600">{area.available}</p>
+                  <p className="text-xs text-gray-300">Available</p>
+                  <p className="font-semibold text-green-400">{area.available}</p>
                 </div>
-                <div className="h-8 w-px bg-gray-200"></div>
+                <div className="h-8 w-px bg-navy-600"></div>
                 <div>
-                  <p className="text-xs text-gray-500">In Service</p>
-                  <p className="font-semibold text-orange-600">{area.inService}</p>
+                  <p className="text-xs text-gray-300">In Service</p>
+                  <p className="font-semibold text-orange-400">{area.inService}</p>
                 </div>
               </div>
             </motion.div>
