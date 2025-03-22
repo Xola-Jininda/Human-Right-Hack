@@ -42,7 +42,7 @@ function allocateAmbulances(facilities: Facility[], availableAmbulances: number)
   
   // Allocate ambulances until we run out
   const allocations: string[] = [];
-  let reasoning = "FastAPI Ambulance Allocation System\n\n";
+  let reasoning = "AI Ambulance Allocation System\n\n";
   let remainingAmbulances = availableAmbulances;
   
   reasoning += `Starting with ${availableAmbulances} ambulances available for allocation.\n\n`;
@@ -77,7 +77,7 @@ function allocateAmbulances(facilities: Facility[], availableAmbulances: number)
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("Request received by FastAPI-style allocation system");
+    console.log("Request received by AI allocation system");
     
     // Parse request data
     const requestData = await request.json();
