@@ -16,11 +16,11 @@ interface Message {
 // Add type definitions for Botsonic
 declare global {
     interface Window {
-        botsonic_widget: string;
-        Botsonic: (command: string, options: any, callback?: (response: any) => void) => void;
-        [key: string]: any;
+      botsonic_widget: string;
+      Botsonic: (command: string, options: any, callback?: (response: any) => void) => void;
+      [key: string]: any;
     }
-}
+  }
 
 export default function Home() {
     // Default images for slideshow
@@ -37,20 +37,18 @@ export default function Home() {
     const [isEnlarged, setIsEnlarged] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [language, setLanguage] = useState("en");
+    const [chatOpen, setChatOpen] = useState(false);
 
     // Botsonic configuration
     const BOTSONIC_SERVICE_BASE_URL = "https://api-azure.botsonic.ai";
     const BOTSONIC_TOKEN = "1ca6ae32-bb74-4141-bdf8-2f71c7e2a544";
-
-    // Add state to track if chat is open
-    const [chatOpen, setChatOpen] = useState(false);
 
     // Handle custom image upload
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             const imageUrl = URL.createObjectURL(file);
-            setImages(prev => [...prev, imageUrl]);
+            setImages((prev) => [...prev, imageUrl]);
             setCurrentIndex(images.length); // Switch to the newly added image
         }
     };
@@ -64,8 +62,8 @@ export default function Home() {
         return () => {
             clearInterval(interval);
             // Clean up any blob URLs when component unmounts
-            images.forEach(img => {
-                if (img.startsWith('blob:')) {
+            images.forEach((img) => {
+                if (img.startsWith("blob:")) {
                     URL.revokeObjectURL(img);
                 }
             });
@@ -75,110 +73,66 @@ export default function Home() {
     useEffect(() => {
         // Load Botsonic script dynamically
         (function (w: Window & typeof globalThis, d: Document, s: string, o: string, f: string) {
-            let js: HTMLScriptElement;
-            let fjs: Element | null;
-
-            w["botsonic_widget"] = o;
-            w[o] =
-                w[o] ||
-                function () {
-                    (w[o].q = w[o].q || []).push(arguments);
-                };
-            js = d.createElement(s) as HTMLScriptElement;
-            fjs = d.getElementsByTagName(s)[0];
-            js.id = o;
-            js.src = f;
-            js.async = true;
-            fjs?.parentNode?.insertBefore(js, fjs);
+          let js: HTMLScriptElement;
+          let fjs: Element | null;
+    
+          w["botsonic_widget"] = o;
+          w[o] =
+            w[o] ||
+            function () {
+              (w[o].q = w[o].q || []).push(arguments);
+            };
+          js = d.createElement(s) as HTMLScriptElement;
+          fjs = d.getElementsByTagName(s)[0];
+          js.id = o;
+          js.src = f;
+          js.async = true;
+          fjs?.parentNode?.insertBefore(js, fjs);
         })(window, document, "script", "Botsonic", "https://widget.botsonic.com/CDN/botsonic.min.js");
+  // Initialize Botsonic
+  window.Botsonic("init", {
+    serviceBaseUrl: BOTSONIC_SERVICE_BASE_URL,
+    token: BOTSONIC_TOKEN,
+  });
 
-        // Initialize Botsonic
-        window.Botsonic("init", {
-            serviceBaseUrl: BOTSONIC_SERVICE_BASE_URL,
-            token: BOTSONIC_TOKEN,
-        });
+  // Optional: Sync messages with Botsonic if needed
+  window.Botsonic("onMessage", (response: any) => {
+    if (response && response.data) {
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: response.data,
+        sender: "assistant",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    }
+  });
 
-        // Optional: Sync messages with Botsonic if needed
-        window.Botsonic("onMessage", (response: any) => {
-            if (response && response.data) {
-                const assistantMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    text: response.data,
-                    sender: "assistant",
-                    timestamp: new Date(),
-                };
-                setMessages((prev) => [...prev, assistantMessage]);
-            }
-        });
+  const userLang = navigator.language.toLowerCase();
+  if (userLang.startsWith("xh")) {
+    setLanguage("xh");
+  }
+}, []);
 
-        const userLang = navigator.language.toLowerCase();
-        if (userLang.startsWith("xh")) {
-            setLanguage("xh");
-        }
-    }, []);
+const toggleEnlarge = () => {
+    setIsEnlarged((prev) => !prev);
+    // Optional: Adjust Botsonic widget size (if supported by Botsonic API)
+    const widget = document.querySelector(".botsonic_widget_container") as HTMLElement;
+    if (widget) {
+      widget.style.width = isEnlarged ? "300px" : "100%";
+      widget.style.height = isEnlarged ? "400px" : "80vh";
+    }
+  };
 
-    const toggleEnlarge = () => {
-        setIsEnlarged((prev: boolean) => !prev);
-        // Optional: Adjust Botsonic widget size (if supported by Botsonic API)
-        const widget = document.querySelector(".botsonic_widget_container") as HTMLElement;
-        if (widget) {
-            widget.style.width = isEnlarged ? "300px" : "100%";
-            widget.style.height = isEnlarged ? "400px" : "80vh";
-        }
-    };
-
-    // Add function to toggle chat visibility
-    const toggleChat = () => {
-        setChatOpen(prev => !prev);
-        if (!chatOpen) {
-            window.Botsonic("open", {});
-        } else {
-            window.Botsonic("close", {});
-        }
-    };
 
     return (
         <>
-            <div id="botsonic_widget_container" className="w-full h-full" />
-
-            {/* Floating chat button */}
-            <motion.button
-                className="fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"
-                whileHover={{ scale: 1.1, boxShadow: "0 10px 25px -5px rgba(239, 68, 68, 0.4)" }}
-                whileTap={{ scale: 0.9 }}
-                onClick={toggleChat}
-                initial={{ y: 100, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 1, type: "spring", stiffness: 400, damping: 10 }}
-            >
-                <AnimatePresence mode="wait">
-                    {!chatOpen ? (
-                        <motion.span
-                            key="chat-icon"
-                            initial={{ opacity: 0, rotate: -90 }}
-                            animate={{ opacity: 1, rotate: 0 }}
-                            exit={{ opacity: 0, rotate: 90 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <MessageCircle className="h-6 w-6" />
-                        </motion.span>
-                    ) : (
-                        <motion.span
-                            key="close-icon"
-                            initial={{ opacity: 0, rotate: -90 }}
-                            animate={{ opacity: 1, rotate: 0 }}
-                            exit={{ opacity: 0, rotate: 90 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <X className="h-6 w-6" />
-                        </motion.span>
-                    )}
-                </AnimatePresence>
-            </motion.button>
-
+            {/* Rest of the component */}
             <div className="h-screen">
                 {/* Hero Section */}
                 <header className="relative h-screen w-full overflow-hidden">
+                <div id="botsonic_widget_container" className="w-full h-full" />
+
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={currentIndex}
@@ -203,11 +157,13 @@ export default function Home() {
                             <button
                                 key={index}
                                 onClick={() => setCurrentIndex(index)}
-                                className={`w-3 h-3 rounded-full transition-all ${index === currentIndex ? "bg-white scale-125" : "bg-white/50"
-                                    }`}
+                                className={`w-3 h-3 rounded-full transition-all ${
+                                    index === currentIndex ? "bg-white scale-125" : "bg-white/50"
+                                }`}
                                 aria-label={`Go to slide ${index + 1}`}
                             />
                         ))}
+                        
                     </div>
 
                     <div className="relative">
@@ -228,7 +184,7 @@ export default function Home() {
                                 </div>
                             </div>
                         </nav>
-
+                        <div id="botsonic_widget_container" className="w-full h-full" />
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
                             <div className="grid lg:grid-cols-2 gap-16 items-center">
                                 <div>
