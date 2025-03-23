@@ -28,14 +28,17 @@ import Link from "next/link";
 
 // Mock data - would be replaced with API calls in a real implementation
 const mockAmbulanceData = {
-  totalAmbulances: 48,
-  availableAmbulances: 32,
-  inServiceAmbulances: 16,
+  totalAmbulances: 439,
+  availableAmbulances: 249,
+  inServiceAmbulances: 190,
   areas: [
-    { id: 1, name: "Downtown", total: 15, available: 9, inService: 6 },
-    { id: 2, name: "North District", total: 12, available: 8, inService: 4 },
-    { id: 3, name: "East Side", total: 10, available: 8, inService: 2 },
-    { id: 4, name: "South County", total: 11, available: 7, inService: 4 }
+    { id: 1, name: "Amathole District", total: 35, available: 20, inService: 15 },
+    { id: 2, name: "OR Tambo District", total: 32, available: 26, inService: 20 },
+    { id: 3, name: "Joe Gqabi District", total: 58, available: 30, inService: 28 },
+    { id: 4, name: "Sarah Baartman District", total: 13, available: 9, inService: 4 },
+    { id: 2, name: "Chris Hani District", total: 40, available: 32, inService: 8 },
+    { id: 3, name: "Buffalo City", total: 43, available: 30, inService: 13 },
+    { id: 4, name: "Alfred Nzo District", total: 28, available: 17, inService: 11 }
   ],
   responseTimeAvg: "8.3 minutes",
   alerts: 2,
@@ -69,7 +72,7 @@ const itemVariants = {
   }
 };
 
-// Enhanced card animation variants
+// Enhanced card animation variants with glowy effect
 const cardVariants = {
   hidden: { y: 20, opacity: 0, scale: 0.95 },
   show: {
@@ -85,10 +88,11 @@ const cardVariants = {
 };
 
 const cardHoverVariants = {
-  initial: { scale: 1 },
+  initial: { scale: 1, boxShadow: "0px 0px 0px rgba(59, 130, 246, 0)" },
   hover: {
     scale: 1.03,
     y: -5,
+    boxShadow: "0px 0px 20px rgba(59, 130, 246, 0.5), 0px 0px 30px rgba(59, 130, 246, 0.3), inset 0px 0px 15px rgba(59, 130, 246, 0.1)",
     transition: { 
       type: "spring", 
       stiffness: 300, 
@@ -664,7 +668,7 @@ export default function DashboardPage() {
                 whileHover={{ 
                   scale: 1.05, 
                   y: -8,
-                  boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+                  boxShadow: "0px 0px 20px rgba(59, 130, 246, 0.5), 0px 0px 30px rgba(59, 130, 246, 0.3), inset 0px 0px 15px rgba(59, 130, 246, 0.1)",
                   transition: { type: "spring", stiffness: 300, damping: 20 }
                 }}
                 className={`relative bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-2xl shadow-xl p-5 cursor-pointer backdrop-blur-sm overflow-hidden

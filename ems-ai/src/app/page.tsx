@@ -2,6 +2,7 @@
 
 import { HeartPulse, Phone, ArrowRight, Upload, MessageCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,6 +39,7 @@ export default function Home() {
     const [isEnlarged, setIsEnlarged] = useState(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [language, setLanguage] = useState("en");
+    const [isLoading, setIsLoading] = useState(false);
 
     // Botsonic configuration
     const BOTSONIC_SERVICE_BASE_URL = "https://api-azure.botsonic.ai";
@@ -55,6 +57,19 @@ export default function Home() {
     ];
     
     const [currentHeadline, setCurrentHeadline] = useState(0);
+
+    const emsParagraphs = [
+        "State-of-the-art emergency medical services with AI-powered dispatch and highly trained professionals available 24/7.",
+        "Advanced telemedicine integration allows our paramedics to connect with specialists in real-time during critical situations.",
+        "Our fleet is equipped with GPS-optimized routing that adapts to traffic conditions and road closures.",
+        "Mobile EMS units strategically positioned throughout rural areas ensure rapid response even in remote locations.",
+        "Vital signs monitoring begins the moment we arrive, with data transmitted directly to receiving hospitals."
+    ];
+    
+    const [typewriterText, setTypewriterText] = useState("");
+    const [activeParagraphIndex, setActiveParagraphIndex] = useState(0);
+    const [isTyping, setIsTyping] = useState(true);
+    const [typingComplete, setTypingComplete] = useState(false);
 
     // Handle custom image upload
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +153,42 @@ export default function Home() {
         return () => clearInterval(headlineInterval);
     }, [headlines.length]);
 
+    // Handle typewriter effect
+    useEffect(() => {
+        const currentParagraph = emsParagraphs[activeParagraphIndex];
+        
+        if (isTyping) {
+            if (typewriterText.length < currentParagraph.length) {
+                // Still typing the current paragraph
+                const timeout = setTimeout(() => {
+                    setTypewriterText(currentParagraph.substring(0, typewriterText.length + 1));
+                }, 50);
+                return () => clearTimeout(timeout);
+            } else {
+                // Finished typing current paragraph
+                setTypingComplete(true);
+                setIsTyping(false);
+                
+                // Schedule the next paragraph after 5 seconds
+                const nextParagraphTimeout = setTimeout(() => {
+                    setTypewriterText("");
+                    setActiveParagraphIndex((prev) => (prev + 1) % emsParagraphs.length);
+                    setIsTyping(true);
+                    setTypingComplete(false);
+                }, 5000);
+                
+                return () => clearTimeout(nextParagraphTimeout);
+            }
+        }
+        
+        return () => {};
+    }, [typewriterText, isTyping, activeParagraphIndex, emsParagraphs, typingComplete]);
+
+    // Initialize typewriter on mount
+    useEffect(() => {
+        setTypewriterText("");
+        setIsTyping(true);
+    }, []);
 
     const toggleEnlarge = () => {
         setIsEnlarged((prev) => !prev);
@@ -149,11 +200,68 @@ export default function Home() {
         }
       };
     
+    const handleGetStarted = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        
+        // Simulate loading time before redirecting
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+    };
 
     return (
         <>
             {/* Rest of the component */}
             <div className="h-screen">
+                {/* Health Department Loader Overlay */}
+                <AnimatePresence>
+                    {isLoading && (
+                        <motion.div 
+                            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        >
+                            <motion.div 
+                                className="relative w-32 h-32"
+                                animate={{ 
+                                    rotate: [0, 360],
+                                    scale: [1, 1.1, 1]
+                                }}
+                                transition={{ 
+                                    duration: 2, 
+                                    repeat: Infinity,
+                                    ease: "linear" 
+                                }}
+                            >
+                                <HeartPulse className="h-32 w-32 text-red-500 absolute" strokeWidth={1.2} />
+                                <span className="absolute inset-0 flex items-center justify-center">
+                                    <motion.div 
+                                        className="w-24 h-1 bg-red-500 rounded-full"
+                                        animate={{
+                                            scaleX: [1, 1.5, 0.5, 1.5, 1],
+                                            opacity: [0.5, 1, 0.5]
+                                        }}
+                                        transition={{
+                                            duration: 1.5,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                    />
+                                </span>
+                            </motion.div>
+                            <motion.p 
+                                className="text-white mt-6 text-xl font-medium"
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{ duration: 1.5, repeat: Infinity }}
+                            >
+                                Preparing Emergency Services...
+                            </motion.p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Hero Section */}
                 <header className="relative h-screen w-full overflow-hidden">
                     
@@ -213,7 +321,7 @@ export default function Home() {
                                         </AnimatePresence>
                                     </h1>
                                     <motion.p
-                                        className="text-2xl text-white/90 mb-8 leading-relaxed backdrop-blur-sm bg-black/10 p-6 rounded-2xl "
+                                        className="text-xl text-white/90 mb-8 leading-relaxed backdrop-blur-sm bg-black/10 p-6 rounded-2xl "
                                         whileHover={{
                                             scale: 1.02,
                                             borderColor: "rgba(255, 255, 255, 0.3)",
@@ -222,21 +330,24 @@ export default function Home() {
                                         }}
                                         transition={{ duration: 0.3 }}
                                     >
-                                        State-of-the-art emergency medical services with AI-powered dispatch and highly trained professionals available 24/7.
+                                        <span className="inline-block">{typewriterText}</span>
+                                        <span className={`inline-block w-0.5 h-2 bg-white ml-1 ${!typingComplete ? 'animate-blink' : 'opacity-0'}`}></span>
                                     </motion.p>
-                                    <div className="flex flex-col sm:flex-row gap-4">
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-4 font-sm">
                                         <motion.div
                                             whileHover={{ scale: 1.05 }}
                                             whileTap={{ scale: 0.95 }}
                                             transition={{ type: "spring", stiffness: 400, damping: 15 }}
                                         >
-                                            <Button 
-                                                size="lg" 
-                                                className="bg-white/20 backdrop-blur-md text-white hover:bg-white/30 border border-white/30 shadow-xl rounded-2xl"
-                                            >
-                                                Get Started
-                                                <Phone className="ml-2 h-4 w-4" />  
-                                            </Button>
+                                            <Link href="/login" onClick={handleGetStarted}>
+                                                <Button 
+                                                    size="lg" 
+                                                    className="bg-[#32a2a8] backdrop-blur-md text-white hover:bg-[#2b8c92] border border-white/30 shadow-xl rounded-2xl"
+                                                >
+                                                    Get Started
+                                                </Button>
+                                            </Link>
                                         </motion.div>
                                         
                                         <motion.div
@@ -246,8 +357,7 @@ export default function Home() {
                                         >
                                             <Button 
                                                 size="lg" 
-                                                variant="outline" 
-                                                className="text-white border-white/30 hover:bg-white/10 backdrop-blur-md rounded-2xl"
+                                                className="bg-[#4c6ab5] text-white border border-white/30 hover:bg-[#4c6ab5] backdrop-blur-md rounded-2xl"
                                             >
                                                 Learn More
                                                 <ArrowRight className="ml-2 h-4 w-4" />

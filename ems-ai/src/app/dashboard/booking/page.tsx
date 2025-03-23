@@ -57,15 +57,29 @@ const itemVariants = {
 };
 
 const cardHoverVariants = {
-  initial: { scale: 1 },
+  initial: { scale: 1, rotate: 0 },
   hover: {
     scale: 1.03,
     y: -5,
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    rotate: 0.5,
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.08)",
     transition: { 
       type: "spring", 
       stiffness: 300, 
       damping: 20 
+    }
+  }
+};
+
+const buttonHoverVariants = {
+  initial: { scale: 1 },
+  hover: { 
+    scale: 1.05,
+    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.2)",
+    transition: { 
+      type: "spring", 
+      stiffness: 400, 
+      damping: 10 
     }
   }
 };
@@ -347,10 +361,10 @@ export default function AdminBookings() {
                 </span>
               </motion.div>
               <motion.button
-                whileHover={{ scale: 1.05 }}
+                whileHover={buttonHoverVariants.hover}
                 whileTap={{ scale: 0.95 }}
                 onClick={refreshData}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg transition-all duration-200 shadow-lg font-medium tracking-wide"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-full transition-all duration-200 shadow-lg font-medium tracking-wide"
               >
                 <motion.div
                   animate={{ rotate: isRefreshing ? 360 : 0 }}
@@ -386,7 +400,7 @@ export default function AdminBookings() {
                   variants={itemVariants} 
                   whileHover={cardHoverVariants.hover}
                   initial="initial"
-                  className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
+                  className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent"></div>
                   <CardHeader className="p-6">
@@ -413,7 +427,7 @@ export default function AdminBookings() {
                   variants={itemVariants} 
                   whileHover={cardHoverVariants.hover}
                   initial="initial"
-                  className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
+                  className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent"></div>
                   <CardHeader className="p-6">
@@ -440,7 +454,7 @@ export default function AdminBookings() {
                   variants={itemVariants} 
                   whileHover={cardHoverVariants.hover}
                   initial="initial"
-                  className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
+                  className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent"></div>
                   <CardHeader className="p-6">
@@ -471,7 +485,7 @@ export default function AdminBookings() {
                   variants={itemVariants}
                   whileHover={cardHoverVariants.hover}
                   initial="initial"
-                  className="lg:col-span-3 relative overflow-hidden rounded-2xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
+                  className="lg:col-span-3 relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm shadow-lg"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent"></div>
                   <CardHeader className="p-6 border-b border-slate-700/50">
@@ -504,7 +518,11 @@ export default function AdminBookings() {
                               key={booking.id}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              whileHover={{ backgroundColor: "rgba(30, 41, 59, 0.3)" }}
+                              whileHover={{ 
+                                backgroundColor: "rgba(30, 41, 59, 0.3)",
+                                scale: 1.01,
+                                transition: { type: "spring", stiffness: 300, damping: 20 }
+                              }}
                               className={`border-slate-700/30 transition-all duration-200 ${
                                 selectedBooking === booking.id ? 'bg-slate-800/50 shadow-md' : ''
                               }`}
@@ -514,29 +532,30 @@ export default function AdminBookings() {
                               <TableCell className="text-slate-300">{booking.location}</TableCell>
                               <TableCell className="text-slate-300 max-w-[200px] truncate">{booking.symptoms}</TableCell>
                               <TableCell>
-                                <Badge className={`${getPriorityColor(booking.priority)} border flex items-center gap-2 px-2.5 py-1.5 rounded-lg shadow-sm`}>
+                                <Badge className={`${getPriorityColor(booking.priority)} border flex items-center gap-2 px-2.5 py-1.5 rounded-full shadow-sm`}>
                                   {getPriorityIcon(booking.priority)}
                                   {booking.priority}
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Badge className={`${getStatusColor(booking.status)} border px-2.5 py-1.5 rounded-lg shadow-sm`}>
+                                <Badge className={`${getStatusColor(booking.status)} border px-2.5 py-1.5 rounded-full shadow-sm`}>
                                   {booking.status}
                                 </Badge>
                               </TableCell>
                               <TableCell>
                                 {booking.status === "Pending" && (
-                                  <Button
-                                    size="sm"
+                                  <motion.button
+                                    whileHover={buttonHoverVariants.hover}
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={() => handleManualAllocate(booking.id)}
                                     disabled={availableAmbulances === 0}
-                                    className={`bg-blue-600 hover:bg-blue-500 text-white transition-all duration-200 rounded-lg shadow-lg ${
+                                    className={`bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 transition-all duration-200 rounded-full shadow-lg ${
                                       selectedBooking === booking.id ? 'scale-105' : ''
                                     }`}
                                   >
                                     <Ambulance className="w-4 h-4 mr-2" />
                                     Allocate
-                                  </Button>
+                                  </motion.button>
                                 )}
                               </TableCell>
                             </motion.tr>

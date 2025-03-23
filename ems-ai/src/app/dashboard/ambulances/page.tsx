@@ -21,6 +21,7 @@ import {
   ChevronLeft
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 
 // Enhanced animation variants
 const containerVariants = {
@@ -45,11 +46,11 @@ const itemVariants = {
 };
 
 const cardHoverVariants = {
-  initial: { scale: 1 },
+  initial: { scale: 1, boxShadow: "0px 0px 0px rgba(59, 130, 246, 0)" },
   hover: {
     scale: 1.03,
     y: -5,
-    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+    boxShadow: "0px 0px 20px rgba(59, 130, 246, 0.5), 0px 0px 30px rgba(59, 130, 246, 0.3), inset 0px 0px 15px rgba(59, 130, 246, 0.1)",
     transition: { 
       type: "spring", 
       stiffness: 300, 
@@ -113,6 +114,7 @@ const mockAmbulances = [
 ];
 
 export default function AmbulancesDetailPage() {
+  const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -255,7 +257,7 @@ export default function AmbulancesDetailPage() {
         <div className="px-3 py-3 mt-auto border-t border-slate-700/50">
           <button 
             className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-            onClick={() => console.log('Sign out')}
+            onClick={() => window.location.href = '/login'}
           >
             <LogOut className="h-5 w-5 text-slate-400" />
             <motion.span
